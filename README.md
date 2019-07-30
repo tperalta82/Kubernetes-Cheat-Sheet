@@ -482,6 +482,7 @@ kubectl get po --v=8
 ```
 
 ** Common Commands
+
 | Name                                 | Command                                                                 |
 |--------------------------------------+-------------------------------------------------------------------------|
 | Run curl test temporarily            | =kubectl run --rm mytest --image=yauritux/busybox-curl -it=             |
