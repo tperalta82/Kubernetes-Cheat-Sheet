@@ -480,33 +480,3 @@ watch kubectl top node
 # --v=8 for debuging 
 kubectl get po --v=8
 ```
-
-** Common Commands
-
-| Name                                 | Command                                                                 |
-|--------------------------------------|-------------------------------------------------------------------------|
-| Run curl test temporarily            | =kubectl run --rm mytest --image=yauritux/busybox-curl -it=             |
-| Run wget test temporarily            | =kubectl run --rm mytest --image=busybox -it=                           |
-| Run nginx deployment with 2 replicas | =kubectl run my-nginx --image=nginx --replicas=2 --port=80=             |
-| Run nginx pod and expose it          | =kubectl run my-nginx --restart=Never --image=nginx --port=80 --expose= |
-| Run nginx deployment and expose it   | =kubectl run my-nginx --image=nginx --port=80 --expose=                 |
-| Set namespace preference             | =kubectl config set-context <context_name> --namespace=<ns_name>=       |
-| List pods with nodes info            | =kubectl get pod -o wide=                                               |
-| List everything                      | =kubectl get all --all-namespaces=                                      |
-| Get all services                     | =kubectl get service --all-namespaces=                                  |
-| Show nodes with labels               | =kubectl get nodes --show-labels=                                       |
-| Validate yaml file with dry run      | =kubectl create --dry-run --validate -f pod-dummy.yaml=                 |
-| Start a temporary pod for testing    | =kubectl run --rm -i -t --image=alpine test-$RANDOM -- sh=              |
-| kubectl run shell command            | =kubectl exec -it mytest -- ls -l /etc/hosts=                           |
-| Get system conf via configmap        | =kubectl -n kube-system get cm kubeadm-config -o yaml=                  |
-| Get deployment yaml                  | =kubectl -n denny-websites get deployment mysql -o yaml=                |
-| Explain resource                     | =kubectl explain pods=, =kubectl explain svc=                           |
-| Watch pods                           | =kubectl get pods  -n wordpress --watch=                                |
-| Query healthcheck endpoint           | =curl -L http://127.0.0.1:10250/healthz=                                |
-| Open a bash terminal in a pod        | =kubectl exec -it storage sh=                                           |
-| Check pod environment variables      | =kubectl exec redis-master-ft9ex env=                                   |
-| Enable kubectl shell autocompletion  | =echo "source <(kubectl completion bash)" >>~/.bashrc=, and reload      |
-| Use minikube dockerd in your laptop  | =eval $(minikube docker-env)=, No need to push docker hub any more      |
-| Kubectl apply a folder of yaml files | =kubectl apply -R -f .=                                                 |
-| Get services sorted by name          | kubectl get services --sort-by=.metadata.name                           |
-| Get pods sorted by restart count     | kubectl get pods --sort-by='.status.containerStatuses[0].restartCount'  |
