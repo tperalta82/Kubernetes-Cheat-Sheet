@@ -484,7 +484,7 @@ kubectl get po --v=8
 ** Common Commands
 
 | Name                                 | Command                                                                 |
-|--------------------------------------+-------------------------------------------------------------------------|
+|--------------------------------------|-------------------------------------------------------------------------|
 | Run curl test temporarily            | =kubectl run --rm mytest --image=yauritux/busybox-curl -it=             |
 | Run wget test temporarily            | =kubectl run --rm mytest --image=busybox -it=                           |
 | Run nginx deployment with 2 replicas | =kubectl run my-nginx --image=nginx --replicas=2 --port=80=             |
