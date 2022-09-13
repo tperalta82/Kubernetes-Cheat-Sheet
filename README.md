@@ -73,7 +73,7 @@ kubectl get pods
 kubectl get rs
 kubectl get svc kuard
 kubectl get endpoints kuard
-ubectl get replicaset 
+kubectl get replicaset 
 kubectl get daemonset 
 kubectl get pv 
 kubectl get pvc
