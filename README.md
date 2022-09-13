@@ -7,6 +7,13 @@
 Linux
 ```
 alias k=kubectl
+alias k="kubectl"
+alias watch="watch"
+alias kg="kubectl get"
+alias kgdep="kubectl get deployment"
+alias ksys="kubectl --namespace=kube-system"
+alias kd="kubectl describe"
+alias bb="kubectl run busybox --image=busybox:1.30.1 --rm -it --restart=Never --command --"
 ```
 
 Windows
@@ -61,29 +68,89 @@ kubectl config set-context $(kubectl config current-context) --namespace=my-name
 ```
 
 To switch between contexts, you can also install and use [kubectx](https://github.com/ahmetb/kubectx).
+## Container Security
+
+for better security add following securityContext settings to manifest
+
+```
+securityContext:
+  # Blocking Root Containers
+  runAsNonRoot: true
+  # Setting a Read-Only Filesystem
+  readOnlyRootFilesystem: true
+  # Disabling Privilege Escalation
+  allowPrivilegeEscalation: false
+  # For maximum security, you should drop all capabilities, and only add specific capabilities if they’re needed:
+    capabilities:
+      drop: ["all"]
+      add: ["NET_BIND_SERVICE"]
+```
+
+## Generateing k8s YAML from local files using --dry-run
+
+```
+# generate a kubernetes tls file
+kubectl create secret tls keycloak-secrets-tls \
+--key tls.key --cert tls.crt \
+-o yaml --dry-run > 02-keycloak-secrets-tls.yml
+```
+
+## Kubectl Commands
+
+```
+kubectl cluster-info
+kubectl config current-context    
+kubectl config get-contexts       
+kubectl config use-context docker-desktop
+kubectl config view
+kubectl port-forward service/ok 8080:8080 8081:80 -n the-project
+kubectl version
+
+#nested kubectl commands
+kubectl -n istio-system port-forward $(kubectl -n istio-system get pod -l app=servicegraph -o jsonpath='{.items[0].metadata.name}') 8082:8088
+
+#Execute commands in running Pods
+kubectl exec -it my-pod-name -- /bin/sh
+```
 
 ## Get Commands
 
 ```
 kubectl get all
-kubectl get namespaces
 kubectl get configmaps
-kubectl get nodes
-kubectl get pods
-kubectl get rs
-kubectl get svc kuard
+kubectl get ep
+kubectl get ep kube-dns --namespace=kube-system
 kubectl get endpoints kuard
 kubectl get replicaset 
 kubectl get daemonset 
 kubectl get pv 
 kubectl get pvc
 kubectl get cronjobs 
+kubectl get namespaces
+kubectl get nodes
+kubectl get persistentvolume
+kubectl get PersistentVolumeClaim --namespace default
+kubectl get pods
+kubectl get pods --namespace kube-system
+kubectl get rs
+kubectl get serviceaccount
+kubectl get storageclass
+kubectl get svc kuard
 ```
 
 Additional switches that can be added to the above commands:
 
 - `-o wide` - Show more information.
 - `--watch` or `-w` - watch for changes.
+
+## Watching
+
+```
+# Left bottom screen was running:
+watch kubectl get pods
+# Right bottom screen was running:
+watch "kubectl get events --sort-by='{.lastTimestamp}' | tail -6"
+```
 
 ## Namespaces
 
@@ -93,6 +160,24 @@ You can set the default namespace for the current context like so:
 
 ```
 kubectl config set-context $(kubectl config current-context) --namespace=my-namespace
+
+# Assign dev context to development namespace
+kubectl config set-context dev --namespace=dev --cluster=minikube --user=minikube
+# Assign qa context to QA namespace
+kubectl config set-context qa --namespace=qa --cluster=minikube --user=minikube
+# Assign prod context to production namespace
+kubectl config set-context prod --namespace=prod --cluster=minikube --user=minikube
+
+# List contexts
+kubectl config get-contexts
+# Switch to Dev context
+kubectl config use-context dev
+# Switch to QA context
+kubectl config use-context qa
+# Switch to Prod context
+kubectl config use-context prod
+
+kubectl config current-context
 ```
 
 To switch namespaces, you can also install and use [kubens](https://github.com/ahmetb/kubectx/blob/master/kubens).
@@ -123,11 +208,23 @@ kubectl describe endpoints kuard [id]
 ## Delete Command
 
 ```
+# Delete resources under a namespace	
+kubectl -n my-ns delete po,svc --all
+# Delete deployments by labels
+kubectl delete deployment -l app=wordpress
+kubectl delete endpoints kuard [id]
 kubectl delete nodes [id]
 kubectl delete pods [id]
+kubectl delete pod -l env=test
+# Delete all resources filtered by labels
+kubectl delete pods,services -l name=myLabel
+# delete persist volumes by label
+# Delete pods by labels
+kubectl delete pvc -l app=wordpress
 kubectl delete rs [id]
+# Delete statefulset only (not pods)
+kubectl delete sts/<stateful_set_name> --cascade=false
 kubectl delete svc kuard [id]
-kubectl delete endpoints kuard [id]
 ```
 
 Force a deletion of a pod without waiting for it to gracefully shut down
@@ -161,6 +258,14 @@ kubectl apply -f kuard-deployment.yml
 ```
 kubectl expose deployment kuard --port 8080 --target-port=8080 --output yaml --export --dry-run > kuard-service.yml
 kubectl apply -f kuard-service.yml
+
+# Execute kubectl command for creating namespaces
+# Namespace for Developers
+kubectl create -f namespace-dev.json
+# Namespace for Testers
+kubectl create -f namespace-qa.json
+# Namespace for Production
+kubectl create -f namespace-prod.json
 ```
 
 ## Export YAML for New Pod
@@ -180,6 +285,15 @@ kubectl get deployment my-cool-app --output yaml --export > my-cool-app.yaml
 - Get logs.
 ```
 kubectl logs -l app=kuard
+
+# get all the logs for a given pod:
+kubectl logs my-pod-name
+# keep monitoring the logs
+kubectl -f logs my-pod-name
+# Or if you have multiple containers in the same pod, you can do:
+kubectl -f logs my-pod-name internal-container-name
+# This allows users to view the diff between a locally declared object configuration and the current state of a live object.
+kubectl alpha diff -f mything.yml
 ```
 
 - Get logs for previously terminated container.
@@ -205,6 +319,16 @@ You can also install and use [kail](https://github.com/boz/kail).
 kubectl port-forward deployment/kuard 8080:8080
 ```
 
+## CI/CD
+
+Redeploy newly build image to existing k8s deployment
+
+```
+BUILD_NUMBER = 1.5.0-SNAPSHOT // GIT_SHORT_SHA
+kubectl diff -f sample-app-deployment.yaml
+kubectl -n=staging set image -f sample-app-deployment.yaml sample-app=xmlking/ngxapp:$BUILD_NUMBER
+```
+
 ## Scaling
 
 - Update replicas.
@@ -226,6 +350,14 @@ kubectl autoscale deployment nginx-deployment --min=10 --max=15 --cpu-percent=80
 kubectl rollout status deployment/nginx-deployment
 Waiting for rollout to finish: 2 out of 3 new replicas have been updated...
 deployment "nginx-deployment" successfully rolled out
+
+Once you run kubectl apply -f manifest.yml
+# To get all the deploys of a deployment, you can do:
+kubectl rollout history deployment/DEPLOYMENT-NAME
+# Once you know which deploy you’d like to roll back to, you can run the following command (given you’d like to roll back to the 100th deploy):
+kubectl rollout undo deployment/DEPLOYMENT_NAME --to-revision=100
+# If you’d like to roll back the last deploy, you can simply do:
+kubectl rollout undo deployment/DEPLOYMENT_NAME
 ```
 
 - Get rollout history.
@@ -298,9 +430,14 @@ spec:
 ## Dashboard
 
 - Enable proxy
+- kubectl proxy creates proxy server between your machine and Kubernetes API server. By default it is only accessible locally (from the machine that started it).
 
 ```
 kubectl proxy
+
+kubectl proxy --port=8080
+curl http://localhost:8080/api/
+curl http://localhost:8080/api/v1/namespaces/default/pods
 ```
 
 # Azure Kubernetes Service
@@ -324,4 +461,30 @@ az aks browse --resource-group <Resource Group Name> --name <AKS Name>
 Get updates
 ```
 az aks get-upgrades --resource-group <Resource Group Name> --name <AKS Name>
+```
+
+## Debug
+
+For many steps here you will want to see what a Pod running in the k8s cluster sees. The simplest way to do this is to run an interactive busybox Pod:
+
+```
+kubectl run -it --rm --restart=Never busybox --image=busybox sh
+
+# you can use busybox for debuging inside cluster
+bb nslookup demo
+bb wget -qO- http://demo:8888
+bb sh
+```
+
+## Tips and Tricks
+
+```
+# Show resource utilization per node:
+kubectl top node
+# Show resource utilization per pod:
+kubectl top pod
+# if you want to have a terminal show the output of these commands every 2 seconds without having to run the command over and over you can use the watch command such as
+watch kubectl top node
+# --v=8 for debuging 
+kubectl get po --v=8
 ```
