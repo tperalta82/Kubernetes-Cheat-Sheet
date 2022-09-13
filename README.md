@@ -440,6 +440,81 @@ curl http://localhost:8080/api/
 curl http://localhost:8080/api/v1/namespaces/default/pods
 ```
 
+## RBAC , Role Based Access Control
+[Taken from here](https://www.containiq.com/post/kubernetes-rbac)
+
+- Check if RBAC is enabled
+```
+kubectl api-versions | grep rbac.authorization.k8s
+```
+
+- If it's not enabled
+```
+kube-apiserver --authorization-mode=RBAC
+```
+
+- Create Test User and describe it's data
+```
+kubectl create serviceaccount demo
+kubectl describe serviceaccount demo
+```
+
+- Create Token for the specified serviceaccount
+```
+kubectl create token demo
+```
+
+- Use the Token and switch Context
+```
+TOKEN=$(kubectl describe secret demo-token-znwmb | grep token: | awk '{print $2}')
+kubectl config set-credentials demo --token=$TOKEN
+kubectl config set-context demo --cluster=kubernetes --user=demo
+kubectl config use-context demo
+```
+
+- If you try to get pods or anything else from the cluster, it will fail as no role actually exists for this SA
+- Creating a Role
+Switch back to your original context before continuing, so you regain your administrative privileges:
+```
+kubectl config use-context default
+```
+
+Sample Role/RoleBinding
+```
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: Developer
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: default
+  name: DeveloperRoleBinding
+subjects:
+  - kind: ServiceAccount
+    name: demo
+    apiGroup: ""
+roleRef:
+  kind: Role
+  name: Developer
+  apiGroup: ""
+```
+
+- Save the above code to a YML, afterwards:
+```
+kubectl apply -f file.yml
+```
+
+- After switching back to the demo context, you should now be able to get pods, as well as create new ones
+
+
 # Azure Kubernetes Service
 
 [List of az aks commands](https://docs.microsoft.com/en-us/cli/azure/aks?view=azure-cli-latest)
