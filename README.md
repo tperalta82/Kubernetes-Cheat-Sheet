@@ -514,6 +514,106 @@ kubectl apply -f file.yml
 
 - After switching back to the demo context, you should now be able to get pods, as well as create new ones
 
+# RBAC with Certificates (dis is da wei)
+
+- Create Private Key and generate a signing request (CSR)
+```
+openssl genrsa -out myuser.key 2048
+openssl req -new -key myuser.key -out myuser.csr
+```
+
+- Create Signing Request using API, approve, and get it  and use it
+```
+ kubectl apply -f - <<EOF
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: myuser
+spec:
+  request: $(cat myuser | base64 | tr -d '\n')
+  signerName: kubernetes.io/kube-apiserver-client
+  usages: ['digital signature', 'key encipherment',
+    'client auth']
+EOF
+
+
+#get list of csrs
+kubectl get csr
+
+kubectl certificate approve myuser
+
+#get the cert
+kubectl get csr myuser -o jsonpath='{.status.certificate}'| base64 -d > myuser.crt
+
+#create role and binding
+kubectl create role developer --verb=create --verb=get --verb=list --verb=update --verb=delete --resource=pods
+kubectl create rolebinding developer-binding-myuser --role=developer --user=myuser
+
+kubectl config set-credentials myuser --client-key=myuser.key --client-certificate=myuser.crt --embed-certs=true
+kubectl config set-context myuser --cluster=kubernetes --user=myuser
+kubectl config use-context myuser
+
+```
+
+- Sample RBAC Yaml for SuperUser (DO NOT USE IN PROD)
+```
+#kubectl create role developer --verb=create --verb=get --verb=list --verb=update --verb=delete --resource=pods
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: myuser
+  namespace: default
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - '*'
+  verbs:
+  - '*'
+---
+#kubectl create rolebinding developer-binding-myuser --role=developer --user=myuser
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: myuser
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: myuser
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: myuser
+---
+### DO NOT USE IN PRODUCTION ###
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  # "namespace" omitted since ClusterRoles are not namespaced
+  name: myuser
+rules:
+- apiGroups: [""]
+  #
+  # at the HTTP level, the name of the resource for accessing Secret
+  # objects is "secrets"
+  resources: ["*"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+# This cluster role binding allows anyone in the "manager" group to read secrets in any namespace.
+kind: ClusterRoleBinding
+metadata:
+  name: myuser-global
+subjects:
+- kind: User
+  name: myuser # Name is case sensitive
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: myuser
+  apiGroup: rbac.authorization.k8s.io
+```
 
 # Azure Kubernetes Service
 
